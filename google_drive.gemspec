@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'google_drive'
-  s.version = '2.1.1'
+  s.version = '2.1.2'
   s.authors = ['Hiroshi Ichikawa']
   s.email = ['gimite+github@gmail.com']
   s.summary = 'A library to read/write files/spreadsheets in Google Drive/Docs.'
@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
   s.require_paths = ['lib']
 
   s.add_dependency('nokogiri', ['>= 1.5.3', '< 2.0.0'])
+  s.add_dependency("sax-machine", [">= 1.3.2"])
   s.add_dependency('google-api-client', ['>= 0.9.0', '< 1.0.0'])
   s.add_dependency('googleauth', ['>= 0.5.0', '< 1.0.0'])
   s.add_development_dependency('test-unit', ['>= 3.0.0', '< 4.0.0'])

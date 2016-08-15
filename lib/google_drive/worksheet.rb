@@ -4,12 +4,38 @@
 require 'cgi'
 require 'set'
 require 'uri'
+require 'sax-machine'
 
 require 'google_drive/util'
 require 'google_drive/error'
 require 'google_drive/list'
 
 module GoogleDrive
+  class CellXMLFragment
+    include SAXMachine
+
+    attribute :col, class: Integer
+    attribute :row, class: Integer
+    attribute :inputValue
+    attribute :numericValue
+
+    value     :value
+  end
+
+  class EntryXMLFragment
+    include SAXMachine
+
+    element :"gs:cell", as: :cell, class: CellXMLFragment
+  end
+ 
+  class WorksheetXMLDocument
+    include SAXMachine
+
+    element   :"gs:rowCount", as: :row_count, class: Integer
+    element   :"gs:colCount", as: :col_count, class: Integer
+    elements  :entry,         as: :entries,   class: EntryXMLFragment
+  end
+
   # A worksheet (i.e. a tab) in a spreadsheet.
   # Use GoogleDrive::Spreadsheet#worksheets to get GoogleDrive::Worksheet object.
   class Worksheet
@@ -476,26 +502,30 @@ module GoogleDrive
     end
 
     def reload_cells
-      doc = @session.request(:get, cells_feed_url)
-      @max_rows = doc.css('gs|rowCount').text.to_i
-      @max_cols = doc.css('gs|colCount').text.to_i
-
       @num_cols = nil
       @num_rows = nil
 
       @cells = {}
       @input_values = {}
       @numeric_values = {}
-      doc.css('feed > entry').each do |entry|
-        cell = entry.css('gs|cell')[0]
-        row = cell['row'].to_i
-        col = cell['col'].to_i
-        @cells[[row, col]] = cell.inner_text
-        @input_values[[row, col]] = cell['inputValue'] || cell.inner_text
-        numeric_value = cell['numericValue']
+
+      xml = @session.request(:get, self.cells_feed_url, {:response_type => :raw})
+      doc = WorksheetXMLDocument.parse(xml)
+
+      @max_rows = doc.row_count
+      @max_cols = doc.col_count
+      doc.entries.each do |entry|
+        cell = entry.cell
+        row = cell.row
+        col = cell.col
+
+        @cells[[row, col]] = cell.value
+        @input_values[[row, col]] = cell.inputValue || cell.value
+
+        numeric_value = cell.numericValue
         @numeric_values[[row, col]] = numeric_value ? numeric_value.to_f : nil
       end
-      @modified.clear
+      @modified.clear()
     end
 
     def parse_cell_args(args)
